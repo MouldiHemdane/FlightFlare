@@ -12,10 +12,11 @@ const airports = Object.values(airportsData)
 interface Props {
     label: string;
     onSelect: (code: string) => void;
+    initialValue?: string;
 }
 
-export default function AirportAutocomplete({ label, onSelect }: Props) {
-    const [query, setQuery] = useState('');
+export default function AirportAutocomplete({ label, onSelect, initialValue = '' }: Props) {
+    const [query, setQuery] = useState(initialValue);
     const [suggestions, setSuggestions] = useState<typeof airports>([]);
 
     const handleSearch = (text: string) => {

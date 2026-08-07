@@ -4,29 +4,32 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AirportAutocomplete from './AirportAutocomplete';
 
-export default function SearchForm() {
+interface SearchFormProps {
+    initialOrigin?: string;
+    initialDestination?: string;
+    initialDate?: string;
+}
+
+export default function SearchForm({ initialOrigin = '', initialDestination = '', initialDate }: SearchFormProps) {
     const router = useRouter();
 
-    // State for form inputs
-    const [origin, setOrigin] = useState('');
-    const [destination, setDestination] = useState('');
+    const [origin, setOrigin] = useState(initialOrigin);
+    const [destination, setDestination] = useState(initialDestination);
 
-    // Default date to tomorrow
+    // Default date to tomorrow if no initial date
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const defaultDate = tomorrow.toISOString().split('T')[0];
-    const [date, setDate] = useState(defaultDate);
+    const [date, setDate] = useState(initialDate || defaultDate);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Basic validation
         if (!origin || !destination || !date) {
             alert('Please fill in all fields (Origin, Destination, and Date).');
             return;
         }
 
-        // Redirect to the flights results page with URL parameters
         router.push(`/flights?origin=${origin}&destination=${destination}&date=${date}`);
     };
 
@@ -40,6 +43,7 @@ export default function SearchForm() {
                 <AirportAutocomplete
                     label="Where from?"
                     onSelect={(iata) => setOrigin(iata)}
+                    initialValue={origin}
                 />
             </div>
 
@@ -48,6 +52,7 @@ export default function SearchForm() {
                 <AirportAutocomplete
                     label="Where to?"
                     onSelect={(iata) => setDestination(iata)}
+                    initialValue={destination}
                 />
             </div>
 
