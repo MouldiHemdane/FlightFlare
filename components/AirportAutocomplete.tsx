@@ -1,6 +1,13 @@
 'use client';
 import { useState } from 'react';
-import airports from '@/lib/iataData.json';
+import airportsData from '@/lib/iataData.json';
+
+const airports = Object.values(airportsData)
+    .filter((a: any) => a.iata && a.iata.length === 3)
+    .map((a: any) => ({
+        ...a,
+        code: a.iata
+    }));
 
 interface Props {
     label: string;
@@ -16,8 +23,8 @@ export default function AirportAutocomplete({ label, onSelect }: Props) {
         if (text.length > 1) {
             const filtered = airports.filter(
                 (a) =>
-                    a.city.toLowerCase().includes(text.toLowerCase()) ||
-                    a.code.toLowerCase().includes(text.toLowerCase())
+                    (a.city || '').toLowerCase().includes(text.toLowerCase()) ||
+                    (a.code || '').toLowerCase().includes(text.toLowerCase())
             );
             setSuggestions(filtered);
         } else {
