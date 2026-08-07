@@ -27,6 +27,8 @@ export async function GET(req: NextRequest) {
     const origin = searchParams.get('origin');
     const destination = searchParams.get('destination');
     const date = searchParams.get('date');
+    const passengersParam = searchParams.get('passengers') || '1';
+    const cabinParam = searchParams.get('cabin') || 'economy';
 
     if (!origin || !destination || !date) {
         return NextResponse.json({ error: 'Missing required parameters: origin, destination, date' }, { status: 400 });
@@ -34,10 +36,13 @@ export async function GET(req: NextRequest) {
 
     try {
         // 1. Create an Offer Request
+        const numPassengers = parseInt(passengersParam, 10) || 1;
+        const passengers = Array(numPassengers).fill({ type: 'adult' });
+        
         const offerRequest = await duffel.offerRequests.create({
             slices: [{ origin, destination, departure_date: date, arrival_time: null, departure_time: null }],
-            passengers: [{ type: 'adult' }],
-            cabin_class: 'economy',
+            passengers,
+            cabin_class: cabinParam as any,
         });
 
         // 2. List returned offers (sorted cheapest first)
@@ -80,6 +85,7 @@ export async function GET(req: NextRequest) {
                     amount: parseFloat(offer.total_amount),
                     currency: offer.total_currency,
                 },
+                passengerId: offer.passengers[0]?.id || '',
             };
         });
 

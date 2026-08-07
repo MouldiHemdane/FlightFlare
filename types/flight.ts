@@ -16,6 +16,7 @@ export interface FlightOffer {
         amount: number;
         currency: string;
     };
+    passengerId: string;
 }
 
 export type SortOption = 'cheapest' | 'fastest' | 'earliest';
