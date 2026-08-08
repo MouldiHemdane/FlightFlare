@@ -1,100 +1,85 @@
-import { NextRequest, NextResponse } from 'next/server';
+// app/api/flights/search/route.ts
 import { Duffel } from '@duffel/api';
-import { FlightOffer } from '@/types/flight';
-
-export const dynamic = 'force-dynamic';
+import { NextResponse } from 'next/server';
+import { redis } from '@/lib/redis';
 
 const duffel = new Duffel({
     token: process.env.DUFFEL_ACCESS_TOKEN || '',
 });
 
-// Helper: convert ISO 8601 duration (e.g. "PT7H30M") to minutes
-function durationToMinutes(iso: string): number {
-    const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
-    if (!match) return 0;
-    return (parseInt(match[1] || '0') * 60) + parseInt(match[2] || '0');
-}
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const origin = (searchParams.get('origin') || 'JFK').toUpperCase();
+    const destination = (searchParams.get('destination') || 'CDG').toUpperCase();
+    const date = searchParams.get('date') || '2026-09-15';
+    const passengersCount = Math.max(1, parseInt(searchParams.get('passengers') || '1', 10));
+    const cabin = (searchParams.get('cabin') || 'economy') as 'economy' | 'business' | 'first' | 'premium_economy';
 
-// Helper: format duration as "7h 30m"
-function formatDuration(iso: string): string {
-    const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
-    if (!match) return 'N/A';
-    const h = match[1] ? `${match[1]}h` : '';
-    const m = match[2] ? ` ${match[2]}m` : '';
-    return `${h}${m}`.trim();
-}
-
-export async function GET(req: NextRequest) {
-    const { searchParams } = new URL(req.url);
-    const origin = searchParams.get('origin');
-    const destination = searchParams.get('destination');
-    const date = searchParams.get('date');
-    const passengersParam = searchParams.get('passengers') || '1';
-    const cabinParam = searchParams.get('cabin') || 'economy';
-
-    if (!origin || !destination || !date) {
-        return NextResponse.json({ error: 'Missing required parameters: origin, destination, date' }, { status: 400 });
-    }
+    const cacheKey = `search:${origin}:${destination}:${date}:${passengersCount}:${cabin}`;
 
     try {
-        // 1. Create an Offer Request
-        const numPassengers = parseInt(passengersParam, 10) || 1;
-        const passengers = Array(numPassengers).fill({ type: 'adult' });
-        
+        // 1. Check Redis Cache First
+        if (process.env.UPSTASH_REDIS_REST_URL) {
+            const cachedData = await redis.get(cacheKey);
+            if (cachedData) {
+                return NextResponse.json({ data: cachedData, source: 'cache' });
+            }
+        }
+
+        // 2. Fetch live data from Duffel if Cache Miss
+        const passengers = Array.from({ length: passengersCount }, () => ({ type: 'adult' as const }));
         const offerRequest = await duffel.offerRequests.create({
-            slices: [{ origin, destination, departure_date: date, arrival_time: null, departure_time: null }],
+            slices: [{ origin, destination, departure_date: date }],
             passengers,
-            cabin_class: cabinParam as any,
+            cabin_class: cabin,
         });
 
-        // 2. List returned offers (sorted cheapest first)
         const offersResponse = await duffel.offers.list({
             offer_request_id: offerRequest.data.id,
-            sort: 'total_amount',
+            limit: 20,
         });
 
-        // 3. Map Duffel offers to our FlightOffer type
-        const offers: FlightOffer[] = offersResponse.data.map((offer: any) => {
+        const formattedFlights = offersResponse.data.map((offer) => {
             const slice = offer.slices[0];
             const firstSegment = slice.segments[0];
             const lastSegment = slice.segments[slice.segments.length - 1];
-            const stops = slice.segments.length - 1;
-            const duration = slice.duration || 'PT0H';
+            const owner = offer.owner;
+
+            // Use segment-level times — slice does NOT have departing_at/arriving_at
+            const departureTime = firstSegment.departing_at;
+            const arrivalTime = lastSegment.arriving_at;
+
+            const totalMinutes = slice.segments.reduce((acc, seg) => {
+                const dep = new Date(seg.departing_at).getTime();
+                const arr = new Date(seg.arriving_at).getTime();
+                return acc + Math.round((arr - dep) / (1000 * 60));
+            }, 0);
 
             return {
                 id: offer.id,
-                airline: offer.owner?.name || 'Unknown',
-                airlineCode: offer.owner?.iata_code || '??',
-                flightNumber: firstSegment?.marketing_carrier_flight_number
-                    ? `${firstSegment.marketing_carrier?.iata_code}${firstSegment.marketing_carrier_flight_number}`
-                    : 'N/A',
-                origin: {
-                    iata: firstSegment?.origin?.iata_code || origin,
-                    name: firstSegment?.origin?.name || '',
-                    city: firstSegment?.origin?.city_name || '',
-                },
-                destination: {
-                    iata: lastSegment?.destination?.iata_code || destination,
-                    name: lastSegment?.destination?.name || '',
-                    city: lastSegment?.destination?.city_name || '',
-                },
-                departureTime: firstSegment?.departing_at || '',
-                arrivalTime: lastSegment?.arriving_at || '',
-                durationMinutes: durationToMinutes(duration),
-                durationFormatted: formatDuration(duration),
-                stops,
-                price: {
-                    amount: parseFloat(offer.total_amount),
-                    currency: offer.total_currency,
-                },
-                passengerId: offer.passengers[0]?.id || '',
+                passengerId: offer.passengers[0]?.id,
+                airline: owner.name,
+                airlineCode: owner.iata_code || 'YY',
+                flightNumber: `${owner.iata_code || 'YY'}-${firstSegment.marketing_flight_number}`,
+                origin: { iata: slice.origin.iata_code, city: (slice.origin as any).city_name || slice.origin.name },
+                destination: { iata: slice.destination.iata_code, city: (slice.destination as any).city_name || slice.destination.name },
+                departureTime,
+                arrivalTime,
+                durationMinutes: totalMinutes,
+                durationFormatted: `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`,
+                stops: slice.segments.length - 1,
+                price: { amount: parseFloat(offer.total_amount), currency: offer.total_currency },
             };
         });
 
-        return NextResponse.json({ data: offers });
+        // 3. Save to Redis Cache with a 15-minute (900 seconds) Expiration
+        if (process.env.UPSTASH_REDIS_REST_URL) {
+            await redis.set(cacheKey, JSON.stringify(formattedFlights), { ex: 900 });
+        }
+
+        return NextResponse.json({ data: formattedFlights, source: 'live' });
     } catch (error: any) {
-        const message = error?.errors?.[0]?.message || error.message || 'Failed to fetch flights';
-        console.error('API route error:', message);
-        return NextResponse.json({ error: message }, { status: 500 });
+        console.error('Duffel API Fetch Error:', error);
+        return NextResponse.json({ error: 'Failed to fetch flight offers' }, { status: 500 });
     }
 }

@@ -2,8 +2,37 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { FlightOffer } from '@/types/flight';
 import PassengerModal, { PassengerFormData } from './PassengerModal';
+
+// Airline logo with graceful fallback to colored initials
+function AirlineLogo({ code, name, bg, text }: { code: string; name: string; bg: string; text: string }) {
+    const [failed, setFailed] = useState(false);
+    const logoUrl = `https://assets.duffel.com/img/airlines/for-light-background/full-color-logo/${code}.svg`;
+
+    if (failed || !code || code === 'YY') {
+        return (
+            <div className={`w-12 h-12 rounded-xl ${bg} ${text} flex items-center justify-center font-black text-sm shrink-0 shadow-sm`}>
+                {code || name.substring(0, 2).toUpperCase()}
+            </div>
+        );
+    }
+
+    return (
+        <div className="w-12 h-12 rounded-xl border border-gray-100 bg-white flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-1">
+            <Image
+                src={logoUrl}
+                alt={name}
+                width={40}
+                height={40}
+                className="object-contain w-full h-full"
+                onError={() => setFailed(true)}
+                unoptimized
+            />
+        </div>
+    );
+}
 
 interface Props {
     flight: FlightOffer;
@@ -117,9 +146,12 @@ export default function FlightCard({ flight, departDate }: Props) {
                 <div className="flex flex-col md:flex-row md:items-center gap-5">
                     {/* Airline Logo Block */}
                     <div className="flex items-center gap-4 md:w-48 shrink-0">
-                        <div className={`w-12 h-12 rounded-xl ${bg} ${text} flex items-center justify-center font-black text-sm shrink-0 shadow-sm`}>
-                            {flight.airlineCode || flight.airline.substring(0, 2).toUpperCase()}
-                        </div>
+                        <AirlineLogo
+                            code={flight.airlineCode}
+                            name={flight.airline}
+                            bg={bg}
+                            text={text}
+                        />
                         <div>
                             <p className="font-bold text-gray-900 text-sm leading-tight">{flight.airline}</p>
                             <p className="text-xs text-gray-400 mt-0.5">{flight.flightNumber}</p>
