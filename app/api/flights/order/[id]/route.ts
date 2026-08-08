@@ -8,9 +8,9 @@ const duffel = new Duffel({
 
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    const orderId = params.id;
+    const { id: orderId } = await params;
 
     if (!orderId) {
         return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
@@ -28,4 +28,4 @@ export async function GET(
             { status: 404 }
         );
     }
-}
+}
