@@ -72,9 +72,30 @@ export default function FlightCard({ flight, departDate }: Props) {
                 bookedAt: new Date().toISOString(),
             });
 
+            // Trigger email confirmation asynchronously
+            fetch('/api/flights/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    toEmail: passengerData.email,
+                    passengerName: `${passengerData.givenName} ${passengerData.familyName}`,
+                    bookingReference: data.order.booking_reference,
+                    origin: flight.origin.iata,
+                    destination: flight.destination.iata,
+                    amount: flight.price.amount,
+                }),
+            }).catch((e) => console.error('Email trigger failed:', e));
+
             router.push(`/booking-success?orderId=${data.order.id}&reference=${data.order.booking_reference}`);
         } catch (error: any) {
-            alert(error.message);
+            const isStale = error.message?.toLowerCase().includes('no longer available') || error.message?.toLowerCase().includes('already');
+            if (isStale) {
+                alert('This flight offer has already been booked or expired. Refreshing search results for updated offers...');
+                router.refresh();
+                window.location.reload();
+            } else {
+                alert(error.message || 'Failed to book flight offer.');
+            }
         } finally {
             setIsSubmitting(false);
         }

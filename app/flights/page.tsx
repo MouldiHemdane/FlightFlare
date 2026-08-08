@@ -27,33 +27,39 @@ export default function FlightsPage() {
     selectedAirlines: [],
   });
 
-  useEffect(() => {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchFlights = async (showFullSpinner = false) => {
     if (!origin || !destination || !departDate) {
       setLoading(false);
       return;
     }
-    async function fetchFlights() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(
-          `/api/flights/search?origin=${origin}&destination=${destination}&date=${departDate}&passengers=${passengersParam}&cabin=${cabinParam}`
-        );
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to fetch flights');
-        const data: FlightOffer[] = json.data || [];
-        setFlights(data);
-        if (data.length > 0) {
-          const highestPrice = Math.max(...data.map((f) => f.price.amount));
-          setFilters((prev) => ({ ...prev, maxPrice: highestPrice }));
-        }
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+    if (showFullSpinner) setLoading(true);
+    else setIsRefreshing(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/flights/search?origin=${origin}&destination=${destination}&date=${departDate}&passengers=${passengersParam}&cabin=${cabinParam}`,
+        { cache: 'no-store' }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to fetch flights');
+      const data: FlightOffer[] = json.data || [];
+      setFlights(data);
+      if (data.length > 0) {
+        const highestPrice = Math.max(...data.map((f) => f.price.amount));
+        setFilters((prev) => ({ ...prev, maxPrice: Math.max(prev.maxPrice, highestPrice) }));
       }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
     }
-    fetchFlights();
+  };
+
+  useEffect(() => {
+    fetchFlights(true);
   }, [origin, destination, departDate, passengersParam, cabinParam]);
 
   const availableAirlines = useMemo(
@@ -152,6 +158,8 @@ export default function FlightsPage() {
                 currentSort={sort}
                 onSortChange={setSort}
                 resultCount={filteredAndSortedFlights.length}
+                onRefresh={() => fetchFlights(false)}
+                isRefreshing={isRefreshing}
               />
               {filteredAndSortedFlights.length === 0 && !error ? (
                 <div className="bg-white p-16 text-center rounded-2xl border border-gray-200 text-gray-400">

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Duffel } from '@duffel/api';
 import { FlightOffer } from '@/types/flight';
 
+export const dynamic = 'force-dynamic';
+
 const duffel = new Duffel({
     token: process.env.DUFFEL_ACCESS_TOKEN || '',
 });

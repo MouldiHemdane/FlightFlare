@@ -10,6 +10,7 @@ import {
     saveBookingToStorage,
     SavedBooking
 } from '@/lib/BookingStorage';
+import FlightStatusTracker from '@/components/FlightStatusTracker';
 
 // SVG Icons for Dashboard UI
 const IconPlane = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -526,6 +527,14 @@ export default function MyBookingsPage() {
                                 <p className="font-mono text-[9px] text-slate-500 tracking-widest">{activeTicket.orderId}</p>
                             </div>
                         </div>
+
+                        {/* Flight Live Status Tracker Widget */}
+                        <FlightStatusTracker
+                            flightNumber={`FL-${activeTicket.bookingReference}`}
+                            origin={activeTicket.origin}
+                            destination={activeTicket.destination}
+                            orderId={activeTicket.orderId}
+                        />
 
                         {/* Live Duffel API status feedback if loaded */}
                         {fetchingLiveStatus ? (
