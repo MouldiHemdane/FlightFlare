@@ -44,7 +44,7 @@ export default function AirportAutocomplete({ label, onSelect, initialValue = ''
 
             setLoading(true);
             try {
-                const res = await fetch(`/api/places/search?q=${encodeURIComponent(query)}`);
+                const res = await fetch(`/api/flights/places/search?q=${encodeURIComponent(query)}`);
                 const json = await res.json();
                 setSuggestions(json.data || []);
             } catch (err) {
@@ -74,7 +74,7 @@ export default function AirportAutocomplete({ label, onSelect, initialValue = ''
                 className="text-sm font-semibold text-gray-800 bg-transparent outline-none placeholder:text-gray-400 placeholder:font-normal w-full"
             />
             {suggestions.length > 0 && (
-                <ul className="absolute top-[calc(100%+8px)] z-20 w-full min-w-[240px] bg-white border border-gray-200 rounded-xl shadow-xl max-h-64 overflow-y-auto divide-y divide-gray-100">
+                <ul style={{ position: 'absolute', top: 'calc(100% + 8px)', zIndex: 50 }} className="w-full min-w-[240px] bg-white border border-gray-200 rounded-xl shadow-xl max-h-64 overflow-y-auto divide-y divide-gray-100">
                     {suggestions.map((item) => (
                         <li
                             key={item.id}
@@ -98,7 +98,7 @@ export default function AirportAutocomplete({ label, onSelect, initialValue = ''
                 </ul>
             )}
             {loading && query.length >= 2 && !isSelected.current && (
-                <div className="absolute top-[calc(100%+8px)] z-20 w-full bg-white border rounded-xl shadow-xl p-3 text-sm text-gray-500 text-center animate-pulse">
+                <div style={{ position: 'absolute', top: 'calc(100% + 8px)', zIndex: 50 }} className="w-full bg-white border rounded-xl shadow-xl p-3 text-sm text-gray-500 text-center animate-pulse">
                     Searching places...
                 </div>
             )}

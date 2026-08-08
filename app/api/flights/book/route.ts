@@ -23,22 +23,22 @@ export async function POST(request: Request) {
             selected_offers: [offerId],
             passengers: [
                 {
-                    id: passenger.id, // ID returned from offer request passenger schema
-                    title: passenger.title, // 'mr', 'ms', 'mrs'
+                    id: passenger.id,
+                    title: passenger.title,
                     given_name: passenger.givenName,
                     family_name: passenger.familyName,
-                    gender: passenger.gender, // 'm' or 'f'
-                    born_on: passenger.bornOn, // 'YYYY-MM-DD'
+                    gender: passenger.gender,
+                    born_on: passenger.bornOn,
                     email: passenger.email,
-                    phone_number: passenger.phoneNumber, // e.g. '+16175551212'
+                    phone_number: passenger.phoneNumber,
                 },
             ],
-            type: 'instant', // Instant ticketing or holds if supported
+            type: 'instant',
             payments: [
                 {
-                    type: 'balance', // Pays using Duffel test credit balance
+                    type: 'balance',
                     currency: currency || 'USD',
-                    amount: totalAmount,
+                    amount: typeof totalAmount === 'number' ? totalAmount.toFixed(2) : String(totalAmount),
                 },
             ],
         });
@@ -46,9 +46,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, order: order.data });
     } catch (error: any) {
         console.error('Duffel Order Creation Error:', error?.errors || error);
+        const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to create booking order';
         return NextResponse.json(
-            { error: error?.errors?.[0]?.message || 'Failed to create booking order' },
+            { error: errorMessage },
             { status: 500 }
         );
     }
-}
+}

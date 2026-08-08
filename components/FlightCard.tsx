@@ -41,7 +41,7 @@ export default function FlightCard({ flight, departDate }: Props) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     offerId: flight.id,
-                    totalAmount: flight.price.amount.toString(),
+                    totalAmount: flight.price.amount,
                     currency: flight.price.currency,
                     passenger: {
                         id: flight.passengerId,
@@ -57,7 +57,22 @@ export default function FlightCard({ flight, departDate }: Props) {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to book flight');
-            router.push(`/flights/booking-success?orderId=${data.order.id}&reference=${data.order.booking_reference}`);
+
+            // Save to local storage for "My Bookings" dashboard
+            const { saveBookingToStorage } = await import('@/lib/BookingStorage');
+            saveBookingToStorage({
+                orderId: data.order.id,
+                bookingReference: data.order.booking_reference,
+                passengerName: `${passengerData.givenName} ${passengerData.familyName}`,
+                origin: flight.origin.iata,
+                destination: flight.destination.iata,
+                departureTime: flight.departureTime,
+                totalAmount: flight.price.amount,
+                currency: flight.price.currency,
+                bookedAt: new Date().toISOString(),
+            });
+
+            router.push(`/booking-success?orderId=${data.order.id}&reference=${data.order.booking_reference}`);
         } catch (error: any) {
             alert(error.message);
         } finally {

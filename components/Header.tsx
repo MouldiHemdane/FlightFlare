@@ -29,8 +29,8 @@ export default function Header() {
 
         {/* Actions */}
         <div className="flex items-center gap-6">
-          <Link href="#" className="text-sm font-medium text-gray-600 hover:text-gray-900 hidden sm:block">
-            Manage Booking
+          <Link href="/my-bookings" className="text-sm font-semibold text-blue-600 hover:text-blue-700 hidden sm:block">
+            My Bookings
           </Link>
           <button className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors">
             Sign In
